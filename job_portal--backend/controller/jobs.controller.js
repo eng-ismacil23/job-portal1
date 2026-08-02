@@ -1,7 +1,7 @@
 const { jobModel } = require('../models/jobs.service');
 
 // get all jobs
-const GET = async ( req, res ) => {
+const GET = async (req, res) => {
     try{
         const jobs = await jobModel.find().populate("createdBy", "name email").select('title company description deadline createdBy');
         res.status(200).json({
@@ -15,11 +15,25 @@ const GET = async ( req, res ) => {
             message: "Internal server error",
             error: err.message
         });
-    };
+    }
 }
 
+// get company's own jobs
+const GETMYJOBS = async (req, res) => {
+    try {
+        const jobs = await jobModel.find({ createdBy: req.user.id }).populate("createdBy", "name email");
+        res.status(200).json({
+            status: "true",
+            message: "Company jobs fetched successfully",
+            data: jobs
+        });
+    } catch(err) {
+        res.status(500).json({ status: "false", message: "Internal server error", error: err.message });
+    }
+};
+
 // get by id 
-const GETBYID = async ( req, res ) => {
+const GETBYID = async (req, res) => {
     try{
         const id = req.params.id;
         const job = await jobModel.findById(id).populate("createdBy", "name email");
@@ -45,7 +59,6 @@ const POST = async (req, res)=>{
     try{
         const { title, company, description, deadline } = req.body;
         
-        // Maadaama middleware-ku uu hubiyay inuu yahay 'company', ID-ga halkan ayaan ka helaynaa
         const createdBy = req.user.id; 
 
         const newJob = new jobModel({
@@ -82,8 +95,7 @@ const DELETE = async (req , res) => {
             return res.status(404).json({ status: "false", message: "Job not found." });
         }
 
-        // Amni: Kaliya shirkaddii abuurtay shaqada ayaa tirtiri karta
-        if(job.createdBy.toString() !== req.user.id) {
+        if(job.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
             return res.status(403).json({ status: "false", message: "Unauthorized. You can only delete your own jobs." });
         }
 
@@ -104,6 +116,7 @@ const DELETE = async (req , res) => {
 
 module.exports = { 
     GET, 
+    GETMYJOBS,
     GETBYID, 
     POST, 
     DELETE 

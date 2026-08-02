@@ -3,16 +3,18 @@ const { jobModel } = require('../models/jobs.service');
 
 const createApplication = async (req, res) => {
     try {
-        const { jobId } = req.body;
-        const studentId = req.user.id; // Laga helay token-ka
+        if (req.user.role !== 'student') {
+            return res.status(403).json({ status: "false", message: "Only students can apply for jobs." });
+        }
 
-        // Hubi in shaqadu jirto
+        const { jobId, status } = req.body;
+        const studentId = req.user.id;
+
         const jobExists = await jobModel.findById(jobId);
         if (!jobExists) {
             return res.status(404).json({ status: "false", message: "Job not found." });
         }
 
-        // Hubi haddii uu ardaygu mar hore codsaday shaqadan
         const alreadyApplied = await appliactionModel.findOne({ jobId, studentId });
         if (alreadyApplied) {
             return res.status(400).json({ status: "false", message: "You have already applied for this job." });
@@ -21,7 +23,7 @@ const createApplication = async (req, res) => {
         const newApplication = new appliactionModel({
             jobId,
             studentId,
-            status: 'pending' // Default ahaan waa pending
+            status: status || 'Pending'
         });
 
         await newApplication.save();
@@ -32,31 +34,28 @@ const createApplication = async (req, res) => {
             data: newApplication
         });
     } catch (err) {
-        res.status(500).json({
-            status: "false",
-            message: "Internal server error",
-            error: err.message
-        });
+        res.status(500).json({ status: "false", message: "Internal server error", error: err.message });
     }
 };
 
 const getApplications = async (req, res) => {
     try {
-        let applications;
-        
-        // Haddii uu yahay shirkad, tusi kaliya application-ada loo soo diray shaqooyinkeeda
+        let query = {};
+
+        // 1. Haddii uu yahay Shirkad: Tusi kaliya applications-ka loo soo diray shaqooyinkeeda
         if (req.user.role === 'company') {
             const myJobs = await jobModel.find({ createdBy: req.user.id }).select('_id');
             const jobIds = myJobs.map(job => job._id);
-            applications = await appliactionModel.find({ jobId: { $in: jobIds } })
-                .populate("jobId", "title company")
-                .populate("studentId", "name email");
-        } else {
-            // Haddii uu yahay admin ama ardayga qudhiisa (Ardaygu wuxuu arki karaa kuwisa kaliya haddii loo xaddido)
-            applications = await appliactionModel.find()
-                .populate("jobId", "title company")
-                .populate("studentId", "name email");
+            query = { jobId: { $in: jobIds } };
         }
+        // 2. Haddii uu yahay Arday: Tusi KALIYA kuwa uu isagu codsaday
+        else if (req.user.role === 'student') {
+            query = { studentId: req.user.id };
+        }
+
+        const applications = await appliactionModel.find(query)
+            .populate("jobId", "title company createdBy description deadline")
+            .populate("studentId", "name email skills");
 
         res.status(200).json({
             status: "true",
@@ -64,11 +63,7 @@ const getApplications = async (req, res) => {
             data: applications
         });
     } catch (err) {
-        res.status(500).json({
-            status: "false",
-            message: "Internal server error",
-            error: err.message
-        });
+        res.status(500).json({ status: "false", message: "Internal server error", error: err.message });
     }
 };
 
@@ -76,15 +71,21 @@ const getApplicationById = async (req, res) => {
     try {
         const { id } = req.params;
         const application = await appliactionModel.findById(id)
-            .populate("jobId", "title company createdBy")
-            .populate("studentId", "name email");
+            .populate("jobId", "title company createdBy description deadline")
+            .populate("studentId", "name email skills");
 
         if (!application) {
             return res.status(404).json({ status: "false", message: "Application not found" });
         }
 
-        // Amni: Kaliya qofkii codsaday ama shirkadii shaqada lahayd ayaa arki karta
-        if (application.studentId._id.toString() !== req.user.id && application.jobId.createdBy.toString() !== req.user.id) {
+        const studentOwnerId = application.studentId?._id?.toString() || application.studentId?.toString();
+        const jobOwnerId = application.jobId?.createdBy?.toString();
+
+        const isStudentOwner = studentOwnerId === req.user.id;
+        const isJobOwner = jobOwnerId === req.user.id;
+        const isAdmin = req.user.role === 'admin';
+
+        if (!isStudentOwner && !isJobOwner && !isAdmin) {
             return res.status(403).json({ status: "false", message: "Unauthorized to view this application." });
         }
 
@@ -94,26 +95,21 @@ const getApplicationById = async (req, res) => {
             data: application
         });
     } catch (err) {
-        res.status(500).json({
-            status: "false",
-            message: "Internal server error",
-            error: err.message
-        });
+        res.status(500).json({ status: "false", message: "Internal server error", error: err.message });
     }
 };
 
 const updateApplicationStatus = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status } = req.body; // tusaale: 'accepted' ama 'rejected'
+        const { status } = req.body;
 
         const application = await appliactionModel.findById(id).populate("jobId");
         if (!application) {
             return res.status(404).json({ status: "false", message: "Application not found" });
         }
 
-        // Amni: Kaliya shirkaddii shaqada iska lahayd ayaa bedeli karta status-ka
-        if (application.jobId.createdBy.toString() !== req.user.id) {
+        if (application.jobId?.createdBy?.toString() !== req.user.id && req.user.role !== 'admin') {
             return res.status(403).json({ status: "false", message: "Unauthorized. Only the job owner can update status." });
         }
 
@@ -126,11 +122,7 @@ const updateApplicationStatus = async (req, res) => {
             data: application
         });
     } catch (err) {
-        res.status(500).json({
-            status: "false",
-            message: "Internal server error",
-            error: err.message
-        });
+        res.status(500).json({ status: "false", message: "Internal server error", error: err.message });
     }
 };
 
@@ -143,8 +135,7 @@ const deleteApplication = async (req, res) => {
             return res.status(404).json({ status: "false", message: "Application not found" });
         }
 
-        // Kaliya ardayga codsaday ayaa kansali kara (tirtiri kara)
-        if (application.studentId.toString() !== req.user.id) {
+        if (application.studentId?.toString() !== req.user.id && req.user.role !== 'admin') {
             return res.status(403).json({ status: "false", message: "Unauthorized to delete this application." });
         }
 
@@ -155,18 +146,14 @@ const deleteApplication = async (req, res) => {
             message: "Application deleted successfully"
         });
     } catch (err) {
-        res.status(500).json({
-            status: "false",
-            message: "Internal server error",
-            error: err.message
-        });
+        res.status(500).json({ status: "false", message: "Internal server error", error: err.message });
     }
 };
 
-module.exports = { 
-    createApplication, 
-    getApplications, 
-    getApplicationById, 
-    updateApplicationStatus, 
-    deleteApplication 
+module.exports = {
+    createApplication,
+    getApplications,
+    getApplicationById,
+    updateApplicationStatus,
+    deleteApplication
 };

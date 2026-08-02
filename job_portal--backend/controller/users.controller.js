@@ -1,18 +1,74 @@
 const { usersModel, validateUsers } = require('../models/users.service');
+const { jobModel } = require('../models/jobs.service');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+// get top 5 companies by real job count (min 1 job)
+const GetCompanies = async (req, res) => {
+    try {
+        const tints = ['#3B82F6', '#EC4899', '#22C55E', '#F59E0B', '#8B5CF6'];
+
+        // 1. Get all active companies
+        const companies = await usersModel.find({ status: 'active', role: 'company' })
+            .select('name email')
+            .lean();
+
+        if (!companies.length) {
+            return res.status(200).json({ success: true, message: "No companies found", data: [] });
+        }
+
+        // 2. Count jobs per company using aggregate
+        const companyIds = companies.map(c => c._id);
+        const jobCounts = await jobModel.aggregate([
+            { $match: { createdBy: { $in: companyIds } } },
+            { $group: { _id: '$createdBy', count: { $sum: 1 } } }
+        ]);
+
+        // Build a lookup map: companyId -> jobCount
+        const countMap = {};
+        jobCounts.forEach(j => { countMap[j._id.toString()] = j.count; });
+
+        // 3. Attach real job count, filter out companies with 0 jobs
+        const withJobs = companies
+            .map((company, index) => ({
+                _id: company._id,
+                name: company.name,
+                email: company.email,
+                jobCount: countMap[company._id.toString()] || 0,
+                jobs: `${countMap[company._id.toString()] || 0} Job${(countMap[company._id.toString()] || 0) !== 1 ? 's' : ''}`,
+                initial: company.name ? company.name.charAt(0).toUpperCase() : 'C',
+                tint: tints[index % tints.length],
+            }))
+            .filter(c => c.jobCount >= 1)       // only companies with at least 1 job
+            .sort((a, b) => b.jobCount - a.jobCount)  // sort by most jobs first
+            .slice(0, 5);                        // top 5
+
+        res.status(200).json({
+            success: true,
+            message: "Top companies fetched successfully",
+            data: withJobs
+        });
+
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: err.message
+        });
+    }
+};
+
 // get all users
-const GET = async (req , res) => {
-    try{
-        const users = await usersModel.find({status: 'active'})
-        .select('name email role skills status');
+const GET = async (req, res) => {
+    try {
+        const users = await usersModel.find({ status: 'active' })
+            .select('name email role skills status');
         res.status(200).json({
             status: "true",
             message: "Users found successfully",
             data: users
         });
-    }catch(err){
+    } catch (err) {
         res.status(500).json({
             status: "false",
             message: "Internal server error",
@@ -22,12 +78,12 @@ const GET = async (req , res) => {
 }
 
 // get by skill
-const GETBYSKILL = async (req , res) => {
-    try{
+const GETBYSKILL = async (req, res) => {
+    try {
         const skill = req.params.skills;
-        const users = await usersModel.find({status:'active', skills: skill})
-        .select('name email role skills ');
-        if(!users || users.length === 0){
+        const users = await usersModel.find({ status: 'active', skills: skill })
+            .select('name email role skills ');
+        if (!users || users.length === 0) {
             return res.status(404).json({
                 status: "false",
                 message: "Users not found"
@@ -38,7 +94,7 @@ const GETBYSKILL = async (req , res) => {
             message: "Users found successfully",
             data: users
         });
-    }catch(err){
+    } catch (err) {
         res.status(500).json({
             status: "false",
             message: "Internal server error",
@@ -48,12 +104,12 @@ const GETBYSKILL = async (req , res) => {
 }
 
 // get user by id
-const GETBYID = async ( req , res) => {
-    try{
+const GETBYID = async (req, res) => {
+    try {
         const userById = req.params.id;
         const user = await usersModel.findOne({ _id: userById, status: 'active' })
-        .select('name email role skills ');
-        if(!user){
+            .select('name email role skills ');
+        if (!user) {
             return res.status(404).json({ status: "false", message: "User not found" });
         }
         res.status(200).json({
@@ -61,7 +117,7 @@ const GETBYID = async ( req , res) => {
             message: "User found successfully",
             data: user
         });
-    }catch(err){
+    } catch (err) {
         res.status(500).json({
             status: "false",
             message: "Internal server error",
@@ -71,10 +127,10 @@ const GETBYID = async ( req , res) => {
 }
 
 // create user
-const POST = async (req , res) => {
-    try{
+const POST = async (req, res) => {
+    try {
         const { name, email, role, skills, password } = req.body;
-        
+
         // Hubi haddii uu hore u jiray email-kan
         const existingUser = await usersModel.findOne({ email });
         if (existingUser) {
@@ -83,7 +139,7 @@ const POST = async (req , res) => {
 
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
-        
+
         const newUser = new usersModel({
             name,
             email,
@@ -91,19 +147,32 @@ const POST = async (req , res) => {
             skills: role === "company" ? undefined : skills, // Shirkaduhu uma baahna skills
             password: hashedPassword
         });
-        
+
         await newUser.save();
 
         let userResponse = newUser.toObject();
-        delete userResponse.password; 
+        delete userResponse.password;
         delete userResponse.__v;
+
+        const token = jwt.sign(
+            { id: newUser._id, role: newUser.role, email: newUser.email, name: newUser.name },
+            process.env.JWT_SECRET || 'supersecretkey',
+            { expiresIn: '7d' }
+        );
 
         res.status(201).json({
             status: "true",
             message: "User created successfully",
-            data: userResponse
+            token: token,
+            data: {
+                id: newUser._id,
+                name: newUser.name,
+                email: newUser.email,
+                role: newUser.role,
+                skills: newUser.skills
+            }
         });
-    }catch(err){
+    } catch (err) {
         res.status(500).json({
             status: "false",
             message: "Internal server error",
@@ -113,15 +182,15 @@ const POST = async (req , res) => {
 }
 
 // post user login
-const POSTLOGIN = async (req , res) => {
-    try{
-        const {email, password} = req.body;
-        if(!email || !password){
+const POSTLOGIN = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        if (!email || !password) {
             return res.status(400).json({ status: "false", message: "Email and password are required" });
         }
-        
-        const user = await usersModel.findOne({email});
-        if(!user || user.status === 'deleted'){
+
+        const user = await usersModel.findOne({ email });
+        if (!user || user.status === 'deleted') {
             return res.status(400).json({ status: "false", message: "Email or password is incorrect" });
         }
 
@@ -132,13 +201,13 @@ const POSTLOGIN = async (req , res) => {
 
         // Soo saar JWT Token
         const token = jwt.sign(
-            { id: user._id, role: user.role },
+            { id: user._id, role: user.role, email: user.email, name: user.name },
             process.env.JWT_SECRET || 'supersecretkey',
-            { expiresIn: '24h' }
+            { expiresIn: '7d' }
         );
 
         res.status(200).json({
-            status: "true", 
+            status: "true",
             message: "User logged in successfully",
             token: token,
             data: {
@@ -149,7 +218,7 @@ const POSTLOGIN = async (req , res) => {
                 skills: user.skills
             }
         });
-    }catch(err){
+    } catch (err) {
         res.status(500).json({
             status: "false",
             message: "Internal server error",
@@ -159,16 +228,16 @@ const POSTLOGIN = async (req , res) => {
 }
 
 // update user
-const PUT = async (req , res) => {
-    try{
+const PUT = async (req, res) => {
+    try {
         const id = req.params.id;
-        
+
         // Amni: Isticmaalahu wuxuu bedeli karaa kaliya xogtiisa (haddii uusan admin ahayn)
         if (req.user.id !== id && req.user.role !== 'admin') {
             return res.status(403).json({ status: "false", message: "Unauthorized to update this user." });
         }
 
-        const {name, email, role, skills, password, status} = req.body;
+        const { name, email, role, skills, password, status } = req.body;
         let updateData = { name, email, role, skills, status };
 
         if (password) {
@@ -179,7 +248,7 @@ const PUT = async (req , res) => {
         const updateUser = await usersModel.findByIdAndUpdate(id, updateData, { new: true })
             .select('_id name email role skills status');
 
-        if(!updateUser){
+        if (!updateUser) {
             return res.status(404).json({ status: "false", message: "User not found" });
         }
 
@@ -188,7 +257,7 @@ const PUT = async (req , res) => {
             message: "User updated successfully",
             data: updateUser
         });
-    }catch(err){
+    } catch (err) {
         res.status(500).json({
             status: "false",
             message: "Internal server error",
@@ -198,8 +267,8 @@ const PUT = async (req , res) => {
 }
 
 // delete user by id
-const DELETE = async (req , res) => {
-    try{
+const DELETE = async (req, res) => {
+    try {
         const id = req.params.id;
 
         if (req.user.id !== id && req.user.role !== 'admin') {
@@ -208,13 +277,13 @@ const DELETE = async (req , res) => {
 
         const deleteUser = await usersModel.findByIdAndUpdate(id, { status: 'deleted' }, { new: true })
             .select('_id name email role skills status');
-            
+
         res.status(200).json({
             status: "true",
             message: "User deleted successfully",
             data: deleteUser
         });
-    }catch(err){
+    } catch (err) {
         res.status(500).json({
             status: "false",
             message: "Internal server error",
@@ -223,11 +292,13 @@ const DELETE = async (req , res) => {
     }
 }
 
-module.exports = { GET, 
-    GETBYSKILL, 
-    GETBYID, 
-    POST, 
-    POSTLOGIN, 
-    PUT, 
-    DELETE 
+module.exports = {
+    GET,
+    GETBYSKILL,
+    GETBYID,
+    POST,
+    POSTLOGIN,
+    PUT,
+    DELETE,
+    GetCompanies
 };
