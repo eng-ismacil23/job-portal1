@@ -543,7 +543,7 @@ function CompanyDashboard({ user }) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  MAIN DASHBOARD
+//  MAIN DASHBOARD of job portal
 // ══════════════════════════════════════════════════════════════
 export default function Dashboard() {
   const { user } = useAuth();
