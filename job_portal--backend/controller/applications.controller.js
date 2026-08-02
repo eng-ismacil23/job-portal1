@@ -1,8 +1,12 @@
-const { appliactionModel } = require('../models/applications.service');
+const { appliactionModel, validateApplication } = require('../models/applications.service');
 const { jobModel } = require('../models/jobs.service');
 
 const createApplication = async (req, res) => {
     try {
+        if (!req.user) {
+            return res.status(401).json({ status: "false", message: "Unauthorized: Token missing" });
+        }
+
         if (req.user.role !== 'student') {
             return res.status(403).json({ status: "false", message: "Only students can apply for jobs." });
         }
@@ -40,15 +44,19 @@ const createApplication = async (req, res) => {
 
 const getApplications = async (req, res) => {
     try {
+        if (!req.user) {
+            return res.status(401).json({ status: "false", message: "Unauthorized: Token missing" });
+        }
+
         let query = {};
 
-        // 1. Haddii uu yahay Shirkad: Tusi kaliya applications-ka loo soo diray shaqooyinkeeda
+        // 1. Shirkad
         if (req.user.role === 'company') {
             const myJobs = await jobModel.find({ createdBy: req.user.id }).select('_id');
             const jobIds = myJobs.map(job => job._id);
             query = { jobId: { $in: jobIds } };
         }
-        // 2. Haddii uu yahay Arday: Tusi KALIYA kuwa uu isagu codsaday
+        // 2. Arday
         else if (req.user.role === 'student') {
             query = { studentId: req.user.id };
         }
@@ -69,6 +77,10 @@ const getApplications = async (req, res) => {
 
 const getApplicationById = async (req, res) => {
     try {
+        if (!req.user) {
+            return res.status(401).json({ status: "false", message: "Unauthorized" });
+        }
+
         const { id } = req.params;
         const application = await appliactionModel.findById(id)
             .populate("jobId", "title company createdBy description deadline")
@@ -101,6 +113,10 @@ const getApplicationById = async (req, res) => {
 
 const updateApplicationStatus = async (req, res) => {
     try {
+        if (!req.user) {
+            return res.status(401).json({ status: "false", message: "Unauthorized" });
+        }
+
         const { id } = req.params;
         const { status } = req.body;
 
@@ -128,6 +144,10 @@ const updateApplicationStatus = async (req, res) => {
 
 const deleteApplication = async (req, res) => {
     try {
+        if (!req.user) {
+            return res.status(401).json({ status: "false", message: "Unauthorized" });
+        }
+
         const { id } = req.params;
         const application = await appliactionModel.findById(id);
 

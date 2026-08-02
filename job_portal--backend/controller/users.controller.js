@@ -89,7 +89,7 @@ const GETBYSKILL = async (req, res) => {
                 message: "Users not found"
             });
         }
-        res.status(200).json({
+        res.status(HTTP_STATUS.OK).json({
             status: "true",
             message: "Users found successfully",
             data: users
@@ -112,7 +112,7 @@ const GETBYID = async (req, res) => {
         if (!user) {
             return res.status(404).json({ status: "false", message: "User not found" });
         }
-        res.status(200).json({
+        res.status(HTTP_STATUS.OK).json({
             status: "true",
             message: "User found successfully",
             data: user
@@ -134,7 +134,7 @@ const POST = async (req, res) => {
         // Hubi haddii uu hore u jiray email-kan
         const existingUser = await usersModel.findOne({ email });
         if (existingUser) {
-            return res.status(400).json({ status: "false", message: "Email already registered" });
+            return res.status(HTTP_STATUS.BAD_REQUEST).json({ status: "false", message: "Email already registered" });
         }
 
         const salt = await bcrypt.genSalt(10);
@@ -196,7 +196,7 @@ const POSTLOGIN = async (req, res) => {
 
         const isPasswordCorrect = await bcrypt.compare(password, user.password);
         if (!isPasswordCorrect) {
-            return res.status(400).json({ status: "false", message: "Email or password is incorrect" });
+            return res.status(HTTP_STATUS.BAD_REQUEST).json({ status: "false", message: "Email or password is incorrect" });
         }
 
         // Soo saar JWT Token
@@ -234,7 +234,7 @@ const PUT = async (req, res) => {
 
         // Amni: Isticmaalahu wuxuu bedeli karaa kaliya xogtiisa (haddii uusan admin ahayn)
         if (req.user.id !== id && req.user.role !== 'admin') {
-            return res.status(403).json({ status: "false", message: "Unauthorized to update this user." });
+            return res.status(HTTP_STATUS.FORBIDDEN).json({ status: "false", message: "Unauthorized to update this user." });
         }
 
         const { name, email, role, skills, password, status } = req.body;
@@ -252,7 +252,7 @@ const PUT = async (req, res) => {
             return res.status(404).json({ status: "false", message: "User not found" });
         }
 
-        res.status(200).json({
+        res.status(HTTP_STATUS.OK).json({
             status: "true",
             message: "User updated successfully",
             data: updateUser
@@ -272,7 +272,7 @@ const DELETE = async (req, res) => {
         const id = req.params.id;
 
         if (req.user.id !== id && req.user.role !== 'admin') {
-            return res.status(403).json({ status: "false", message: "Unauthorized to delete this account." });
+            return res.status(HTTP_STATUS.FORBIDDEN).json({ status: "false", message: "Unauthorized to delete this account." });
         }
 
         const deleteUser = await usersModel.findByIdAndUpdate(id, { status: 'deleted' }, { new: true })

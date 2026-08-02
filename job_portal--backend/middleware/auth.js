@@ -8,7 +8,7 @@ const authenticate = (req, res, next) => {
 
     const token = authHeader.replace(/^Bearer\s+/, '').trim();
     if (!token) {
-        return res.status(401).json({ status: "false", message: "Access denied. No token provided." });
+        return res.status(HTTP_STATUS.UNAUTHORIZED).json({ status: "false", message: "Access denied. No token provided." });
     }
 
     try {
