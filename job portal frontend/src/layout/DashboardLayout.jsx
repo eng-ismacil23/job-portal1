@@ -2,10 +2,7 @@ import React, { useState } from 'react';
 import {
   DashboardOutlined,
   FileTextOutlined,
-  BankOutlined,
-  BellOutlined,
   MenuOutlined,
-  SearchOutlined,
   LogoutOutlined,
   UserOutlined,
   PlusCircleOutlined,
@@ -42,12 +39,24 @@ export default function DashboardLayout({ children }) {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap');
 
+        /* Reset - prevents the whole page from scrolling; only .jp-body-wrap scrolls */
+        html, body, #root {
+          margin: 0;
+          padding: 0;
+          height: 100%;
+          overflow: hidden;
+        }
+
         .jp-heading { font-family: 'Poppins', sans-serif; }
         .jp-body { font-family: 'Inter', sans-serif; }
         * { box-sizing: border-box; }
 
+        /* Outer Container: Height-ka waa 100vh, scroll-ka bogga oo dhan wuu reeban yahay */
         .jp-dashboard {
-          min-height: 100vh;
+          height: 100vh;
+          height: 100dvh;
+          width: 100vw;
+          overflow: hidden;
           background: linear-gradient(160deg, #06124A 0%, #08153D 45%, #000B29 100%);
           color: #FFFFFF;
           font-family: 'Inter', sans-serif;
@@ -59,6 +68,7 @@ export default function DashboardLayout({ children }) {
           position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
         }
 
+        /* Sidebar Fixed Setup */
         .jp-sidebar {
           width: 260px;
           flex-shrink: 0;
@@ -68,14 +78,10 @@ export default function DashboardLayout({ children }) {
           display: flex;
           flex-direction: column;
           padding: 22px 16px;
-          position: sticky;
-          top: 0;
-          height: 100vh;
+          height: 100%;
           z-index: 20;
           transition: transform .25s ease;
         }
-
-        .jp-[#06124A] { color: ${BRAND.dark}; }
 
         .jp-nav-item {
           display: flex;
@@ -104,26 +110,36 @@ export default function DashboardLayout({ children }) {
           box-shadow: 0 6px 18px rgba(250, 249, 42, 0.25);
         }
 
+        /* Main Wrapper: Flex-direction Column & Overflow Hidden */
         .jp-main-content {
           flex: 1;
           display: flex;
           flex-direction: column;
+          height: 100%;
           min-width: 0;
           position: relative;
           z-index: 1;
+          overflow: hidden;
         }
 
+        /* Topbar: Fixed at top (flex-shrink: 0) - never scrolls */
         .jp-topbar {
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 20px 36px;
           border-bottom: 1px solid rgba(250, 249, 42, 0.1);
+          flex-shrink: 0;
+          background: rgba(6, 18, 74, 0.4);
+          backdrop-filter: blur(10px);
         }
 
+        /* Body Wrap: Halkan kaliya ayaa leh SCROLL (overflow-y: auto) */
         .jp-body-wrap {
           padding: 28px 36px;
           flex: 1;
+          overflow-y: auto;
+          min-height: 0;
         }
 
         @media (max-width: 900px) {
@@ -148,7 +164,7 @@ export default function DashboardLayout({ children }) {
 
       {/* Sidebar */}
       <aside className={`jp-sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <Link to="/home" className="flex items-center gap-3 mb-8 px-2 text-decoration-none">
+        <Link to="/dashboard" className="flex items-center gap-3 mb-8 px-2 text-decoration-none">
           <LogoMark size={38} />
           <div className="flex flex-col">
             <span className="jp-heading font-extrabold text-white text-lg leading-tight">
@@ -160,7 +176,7 @@ export default function DashboardLayout({ children }) {
           </div>
         </Link>
 
-        <nav className="flex-1">
+        <nav className="flex-1 overflow-y-auto">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
