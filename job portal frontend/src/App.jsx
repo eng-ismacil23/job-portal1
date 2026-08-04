@@ -2,6 +2,9 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 
+import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
+
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -15,18 +18,17 @@ import Applications from "./pages/Applications";
 function App() {
   return (
     <AuthProvider>
+      <Navbar />
+
       <Routes>
-        {/* Default Route */}
         <Route path="/" element={<Navigate to="/home" replace />} />
 
-        {/* Public Routes */}
         <Route path="/home" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/jobs" element={<Jobs />} />
         <Route path="/jobs/:id" element={<JobDetails />} />
 
-        {/* Protected Routes */}
         <Route
           path="/dashboard"
           element={
@@ -35,6 +37,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/profile"
           element={
@@ -43,6 +46,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/applications"
           element={
@@ -51,18 +55,20 @@ function App() {
             </ProtectedRoute>
           }
         />
+
         <Route
           path="/create-job"
           element={
-            <ProtectedRoute allowedRoles={['company', 'admin']}>
+            <ProtectedRoute allowedRoles={["company", "admin"]}>
               <CreateJob />
             </ProtectedRoute>
           }
         />
 
-        {/* 404 Fallback */}
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
+
+      <Footer />
     </AuthProvider>
   );
 }
