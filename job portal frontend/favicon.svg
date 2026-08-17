@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Background rounded square -->
+  <rect width="64" height="64" rx="14" fill="url(#grad)"/>
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FAF92A;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FDBF2D;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Briefcase body -->
+  <rect x="12" y="26" width="40" height="26" rx="4" fill="#06124A"/>
+  <!-- Briefcase handle/top bar -->
+  <path d="M24 26V22C24 19.8 25.8 18 28 18H36C38.2 18 40 19.8 40 22V26" stroke="#06124A" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <!-- Center divider line -->
+  <rect x="12" y="37" width="40" height="3" fill="#0A1D5A"/>
+  <!-- Buckle/handle center -->
+  <rect x="27" y="33" width="10" height="7" rx="2" fill="#FAF92A"/>
+  <!-- Trend arrow (small accent) -->
+  <path d="M18 44L23 40L27 43L32 38" stroke="#FAF92A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

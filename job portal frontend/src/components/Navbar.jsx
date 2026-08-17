@@ -1,8 +1,7 @@
-// navbar
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Menu, X, User, LogOut, Briefcase, PlusCircle, LayoutDashboard, FileText } from 'lucide-react';
-import { BRAND, LogoMark } from '../brand';
+import { Menu, X, User, LogOut, PlusCircle, LayoutDashboard } from 'lucide-react';
+import { LogoMark } from '../brand';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
@@ -11,12 +10,47 @@ export default function Navbar() {
   const location = useLocation();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = React.useRef(null);
+
+  // Dynamic favicon & page title based on current route
+  useEffect(() => {
+    const routeTitles = {
+      '/home': 'JobPortal — Connect. Apply. Grow.',
+      '/jobs': 'Find Jobs — JobPortal',
+      '/login': 'Log In — JobPortal',
+      '/register': 'Sign Up — JobPortal',
+    };
+    const title = routeTitles[location.pathname] || 'JobPortal — Connect. Apply. Grow.';
+    document.title = title;
+
+    // Ensure favicon is always set to our SVG
+    let link = document.querySelector("link[rel~='icon']");
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
+    link.type = 'image/svg+xml';
+    link.href = '/favicon.svg';
+  }, [location.pathname]);
 
   // Listen for scroll to add shadow effect
-  React.useEffect(() => {
+  useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Close avatar dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
   const isActive = (path) => location.pathname === path;
@@ -54,19 +88,25 @@ export default function Navbar() {
         <nav className="hidden md:flex items-center gap-6">
           <Link
             to="/home"
-            className={`text-sm font-medium transition-colors ${
+            className={`relative text-sm font-medium transition-colors pb-1 ${
               isActive('/home') ? 'text-[#FAF92A] font-semibold' : 'text-[#AEB8D0] hover:text-white'
             }`}
           >
             Home
+            {isActive('/home') && (
+              <span className="absolute -bottom-[13px] left-0 right-0 h-[2px] bg-[#FAF92A] rounded-full" />
+            )}
           </Link>
           <Link
             to="/jobs"
-            className={`text-sm font-medium transition-colors ${
+            className={`relative text-sm font-medium transition-colors pb-1 ${
               isActive('/jobs') ? 'text-[#FAF92A] font-semibold' : 'text-[#AEB8D0] hover:text-white'
             }`}
           >
             Find Jobs
+            {isActive('/jobs') && (
+              <span className="absolute -bottom-[13px] left-0 right-0 h-[2px] bg-[#FAF92A] rounded-full" />
+            )}
           </Link>
           {user && (
             <>
@@ -104,23 +144,49 @@ export default function Navbar() {
         {/* Auth Action Buttons */}
         <div className="hidden md:flex items-center gap-4">
           {user ? (
-            <div className="flex items-center gap-3">
-              <Link
-                to="/profile"
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setDropdownOpen((v) => !v)}
                 className="flex items-center gap-2 bg-[#10205F] border border-[#10205F] hover:border-[#FAF92A]/40 px-3 py-1.5 rounded-full text-white text-sm font-medium transition-all"
               >
-                <div className="w-6 h-6 rounded-full bg-[#FAF92A] text-[#06124A] flex items-center justify-center font-bold text-xs">
-                  {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                </div>
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-6 h-6 rounded-full object-cover border border-[#FAF92A]/40" />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-[#FAF92A] text-[#06124A] flex items-center justify-center font-bold text-xs">
+                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
                 <span>{user.name}</span>
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="p-2 rounded-full text-[#AEB8D0] hover:text-[#EF4444] hover:bg-[#10205F] transition-all"
-                title="Log Out"
-              >
-                <LogOut size={18} />
               </button>
+
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-[#10205F] border border-white/10 rounded-xl shadow-2xl shadow-black/40 py-1.5 overflow-hidden animate-fadeIn">
+                  <Link
+                    to="/profile"
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#AEB8D0] hover:text-white hover:bg-[#08153D] transition-colors"
+                  >
+                    <User size={15} /> Profile
+                  </Link>
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setDropdownOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2.5 text-sm text-[#AEB8D0] hover:text-white hover:bg-[#08153D] transition-colors"
+                  >
+                    <LayoutDashboard size={15} /> Dashboard
+                  </Link>
+                  <div className="border-t border-white/5 my-1" />
+                  <button
+                    onClick={() => {
+                      setDropdownOpen(false);
+                      handleLogout();
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-[#EF4444] hover:bg-[#08153D] transition-colors"
+                  >
+                    <LogOut size={15} /> Log Out
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-3">
