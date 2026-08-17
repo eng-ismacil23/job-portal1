@@ -20,12 +20,14 @@ export default function DashboardLayout({ children }) {
   const isDarkCharcoal = theme === 'dark';
   const isNavyOriginal = theme === 'navy';
 
+  const isCompany = user?.role === 'company';
+
   // Build nav items based on role
   const navItems = [
-    { key: 'dashboard',    label: 'Dashboard',    icon: LayoutDashboard, path: '/dashboard' },
-    { key: 'jobs',         label: 'Find Jobs',    icon: Briefcase,       path: '/jobs' },
-    { key: 'applications', label: 'Applications', icon: FileText,        path: '/applications' },
-    { key: 'profile',      label: 'My Profile',   icon: User,            path: '/profile' },
+    { key: 'dashboard',    label: 'Dashboard',                      icon: LayoutDashboard, path: '/dashboard' },
+    { key: 'jobs',         label: isCompany ? 'Jobs' : 'Find Jobs', icon: Briefcase,       path: '/jobs' },
+    { key: 'applications', label: 'Applications',                   icon: FileText,        path: '/applications' },
+    { key: 'profile',      label: 'My Profile',                     icon: User,            path: '/profile' },
   ];
 
   if (user?.role === 'company') {
@@ -39,6 +41,13 @@ export default function DashboardLayout({ children }) {
   if (user?.role === 'admin') {
     navItems.push({ key: 'admin-panel', label: 'Admin Panel', icon: Shield, path: '/admin' });
   }
+
+  const isItemActive = (path) => {
+    if (path === '/jobs') {
+      return location.pathname === '/jobs' || location.pathname.startsWith('/jobs/');
+    }
+    return location.pathname === path;
+  };
 
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -355,7 +364,7 @@ export default function DashboardLayout({ children }) {
 
           {navItems.slice(0, 4).map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = isItemActive(item.path);
             return (
               <Link
                 key={item.key}
@@ -378,7 +387,7 @@ export default function DashboardLayout({ children }) {
               </span>
               {navItems.slice(4).map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+                const isActive = isItemActive(item.path);
                 return (
                   <Link
                     key={item.key}
@@ -440,7 +449,7 @@ export default function DashboardLayout({ children }) {
             {/* Breadcrumb / page title */}
             <div>
               <div style={{ fontSize: 11, color: tokens.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
-                Dashboard › {navItems.find(n => n.path === location.pathname)?.label || 'Overview'}
+                Dashboard › {navItems.find(n => isItemActive(n.path))?.label || (location.pathname.startsWith('/jobs/') ? (isCompany ? 'Job Details' : 'Job Details') : 'Overview')}
               </div>
               <h1 style={{
                 margin: 0, fontSize: 18, fontWeight: 800, color: tokens.text,
