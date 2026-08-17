@@ -1,9 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-
-import Navbar from "./components/Navbar";
-import Footer from "./components/Footer";
+import ScrollToTop from "./components/ScrollToTop";
 
 import Home from "./pages/Home";
 import Login from "./pages/Login";
@@ -14,21 +12,25 @@ import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
 import CreateJob from "./pages/CreateJob";
 import Applications from "./pages/Applications";
+import AdminDashboard from "./pages/AdminDashboard";
+import CompanyJobs from "./pages/CompanyJobs";
 
 function App() {
   return (
     <AuthProvider>
-      <Navbar />
-
+      <ScrollToTop />
       <Routes>
+        {/* Default Route */}
         <Route path="/" element={<Navigate to="/home" replace />} />
 
+        {/* Public Routes */}
         <Route path="/home" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/jobs" element={<Jobs />} />
         <Route path="/jobs/:id" element={<JobDetails />} />
 
+        {/* Protected Routes */}
         <Route
           path="/dashboard"
           element={
@@ -37,7 +39,22 @@ function App() {
             </ProtectedRoute>
           }
         />
-
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/company/jobs"
+          element={
+            <ProtectedRoute allowedRoles={['company', 'admin']}>
+              <CompanyJobs />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/profile"
           element={
@@ -46,7 +63,6 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/applications"
           element={
@@ -55,20 +71,18 @@ function App() {
             </ProtectedRoute>
           }
         />
-
         <Route
           path="/create-job"
           element={
-            <ProtectedRoute allowedRoles={["company", "admin"]}>
+            <ProtectedRoute allowedRoles={['company', 'admin']}>
               <CreateJob />
             </ProtectedRoute>
           }
         />
 
+        {/* 404 Fallback */}
         <Route path="*" element={<Navigate to="/home" replace />} />
       </Routes>
-
-      <Footer />
     </AuthProvider>
   );
 }

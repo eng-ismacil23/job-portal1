@@ -1,256 +1,521 @@
 import React, { useState } from 'react';
 import {
-  DashboardOutlined,
-  FileTextOutlined,
-  MenuOutlined,
-  LogoutOutlined,
-  UserOutlined,
-  PlusCircleOutlined,
-} from '@ant-design/icons';
-import { Briefcase } from 'lucide-react';
+  LayoutDashboard, FileText, Briefcase, User, PlusCircle,
+  Settings, LogOut, Menu, X, ChevronRight, Bell, Search,
+  Building2, Shield, Sun, Moon, Palette
+} from 'lucide-react';
 import { BRAND, LogoMark } from '../brand';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function DashboardLayout({ children }) {
   const { user, logout } = useAuth();
+  const { theme, changeTheme, cycleTheme, tokens } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  const isLight = theme === 'light';
+  const isDarkCharcoal = theme === 'dark';
+  const isNavyOriginal = theme === 'navy';
+
+  // Build nav items based on role
   const navItems = [
-    { key: 'dashboard', label: 'Dashboard', icon: DashboardOutlined, path: '/dashboard' },
-    { key: 'jobs', label: 'Find Jobs', icon: Briefcase, path: '/jobs' },
-    { key: 'applications', label: 'Applications', icon: FileTextOutlined, path: '/applications' },
-    { key: 'profile', label: 'My Profile', icon: UserOutlined, path: '/profile' },
+    { key: 'dashboard',    label: 'Dashboard',    icon: LayoutDashboard, path: '/dashboard' },
+    { key: 'jobs',         label: 'Find Jobs',    icon: Briefcase,       path: '/jobs' },
+    { key: 'applications', label: 'Applications', icon: FileText,        path: '/applications' },
+    { key: 'profile',      label: 'My Profile',   icon: User,            path: '/profile' },
   ];
 
   if (user?.role === 'company') {
-    navItems.push({ key: 'create-job', label: 'Post a Job', icon: PlusCircleOutlined, path: '/create-job' });
+    navItems.push({ key: 'company-jobs', label: 'My Jobs', icon: Building2, path: '/company/jobs' });
   }
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  if (user?.role === 'company' || user?.role === 'admin') {
+    navItems.push({ key: 'create-job', label: 'Post a Job', icon: PlusCircle, path: '/create-job' });
+  }
+
+  if (user?.role === 'admin') {
+    navItems.push({ key: 'admin-panel', label: 'Admin Panel', icon: Shield, path: '/admin' });
+  }
+
+  const handleLogout = () => { logout(); navigate('/login'); };
+
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    return parts.length > 1
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : parts[0][0].toUpperCase();
   };
 
   return (
-    <div className="jp-dashboard">
+    <div style={{
+      minHeight: '100vh', display: 'flex',
+      background: tokens.bg, color: tokens.text,
+      fontFamily: 'Inter, sans-serif', position: 'relative',
+      transition: 'background-color 0.25s ease, color 0.25s ease'
+    }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap');
-
-        /* Reset - prevents the whole page from scrolling; only .jp-body-wrap scrolls */
-        html, body, #root {
-          margin: 0;
-          padding: 0;
-          height: 100%;
-          overflow: hidden;
-        }
-
-        .jp-heading { font-family: 'Poppins', sans-serif; }
-        .jp-body { font-family: 'Inter', sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; }
 
-        /* Outer Container: Height-ka waa 100vh, scroll-ka bogga oo dhan wuu reeban yahay */
-        .jp-dashboard {
-          height: 100vh;
-          height: 100dvh;
-          width: 100vw;
-          overflow: hidden;
-          background: linear-gradient(160deg, #06124A 0%, #08153D 45%, #000B29 100%);
-          color: #FFFFFF;
-          font-family: 'Inter', sans-serif;
-          display: flex;
-          position: relative;
-        }
-
-        .jp-glow {
-          position: fixed; border-radius: 50%; pointer-events: none; z-index: 0;
-        }
-
-        /* Sidebar Fixed Setup */
-        .jp-sidebar {
-          width: 260px;
+        .dl-sidebar {
+          width: 256px;
           flex-shrink: 0;
-          background: rgba(6, 18, 74, 0.85);
-          backdrop-filter: blur(20px);
-          border-right: 1px solid rgba(250, 249, 42, 0.12);
+          background: ${tokens.sidebarBg};
+          border-right: 1px solid ${tokens.border};
           display: flex;
           flex-direction: column;
-          padding: 22px 16px;
-          height: 100%;
-          z-index: 20;
-          transition: transform .25s ease;
+          padding: 0;
+          position: sticky;
+          top: 0;
+          height: 100vh;
+          z-index: 40;
+          transition: transform .25s cubic-bezier(.4,0,.2,1), background-color .25s ease, border-color .25s ease;
         }
 
-        .jp-nav-item {
+        .dl-logo-area {
+          padding: 22px 20px 16px;
+          border-bottom: 1px solid ${tokens.border};
+          flex-shrink: 0;
+        }
+
+        .dl-nav-section {
+          padding: 14px 12px 0;
+          flex: 1;
+          overflow-y: auto;
+          overflow-x: hidden;
+        }
+
+        .dl-nav-section::-webkit-scrollbar { width: 4px; }
+        .dl-nav-section::-webkit-scrollbar-thumb { background: ${tokens.border}; border-radius: 4px; }
+
+        .dl-nav-label {
+          font-size: 10px;
+          font-weight: 700;
+          color: ${tokens.textMuted};
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          padding: 8px 10px 6px;
+          display: block;
+        }
+
+        .dl-nav-item {
           display: flex;
           align-items: center;
-          gap: 12px;
-          padding: 12px 16px;
-          border-radius: 14px;
-          color: #AEB8D0;
-          font-size: 14px;
+          gap: 11px;
+          padding: 11px 14px;
+          border-radius: 12px;
+          color: ${tokens.textMuted};
+          font-size: 13.5px;
           font-weight: 500;
           cursor: pointer;
           transition: all .15s ease;
-          margin-bottom: 6px;
+          margin-bottom: 3px;
           text-decoration: none;
-        }
-
-        .jp-nav-item:hover {
-          color: #FFFFFF;
-          background: rgba(250, 249, 42, 0.06);
-        }
-
-        .jp-nav-item.active {
-          background: linear-gradient(90deg, #FAF92A, #FDBF2D);
-          color: #06124A;
-          font-weight: 700;
-          box-shadow: 0 6px 18px rgba(250, 249, 42, 0.25);
-        }
-
-        /* Main Wrapper: Flex-direction Column & Overflow Hidden */
-        .jp-main-content {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          height: 100%;
-          min-width: 0;
           position: relative;
-          z-index: 1;
-          overflow: hidden;
+          font-family: 'Inter', sans-serif;
         }
 
-        /* Topbar: Fixed at top (flex-shrink: 0) - never scrolls */
-        .jp-topbar {
+        .dl-nav-item:hover {
+          color: ${tokens.text};
+          background: ${tokens.hoverBg};
+        }
+
+        .dl-nav-item.active {
+          background: ${isLight ? '#FFFFFF' : isDarkCharcoal ? '#F97316' : 'linear-gradient(135deg, #FAF92A, #FDBF2D)'};
+          color: ${isLight ? '#111827' : isDarkCharcoal ? '#FFFFFF' : '#06124A'};
+          font-weight: 700;
+          box-shadow: ${isLight ? '0 2px 8px rgba(0,0,0,0.06)' : isDarkCharcoal ? '0 4px 14px rgba(249,115,22,0.3)' : '0 4px 16px rgba(250,249,42,0.22)'};
+          border: ${isLight ? '1px solid #E3E0D8' : 'none'};
+        }
+
+        .dl-nav-item.active svg { opacity: 1; color: ${isLight ? '#111827' : isDarkCharcoal ? '#FFFFFF' : '#06124A'}; }
+        .dl-nav-item svg { opacity: 0.7; flex-shrink: 0; }
+
+        .dl-nav-item .nav-arrow {
+          margin-left: auto;
+          opacity: 0;
+          transition: opacity .15s;
+        }
+        .dl-nav-item:hover .nav-arrow { opacity: 0.5; }
+        .dl-nav-item.active .nav-arrow { opacity: 1; }
+
+        .dl-user-area {
+          padding: 14px 14px 18px;
+          border-top: 1px solid ${tokens.border};
+          flex-shrink: 0;
+        }
+
+        .dl-user-card {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 12px;
+          border-radius: 12px;
+          background: ${isLight ? '#FFFFFF' : tokens.hoverBg};
+          border: 1px solid ${tokens.border};
+          transition: background .15s;
+          text-decoration: none;
+          color: inherit;
+        }
+        .dl-user-card:hover { background: ${tokens.hoverBg}; }
+
+        .dl-avatar {
+          width: 36px;
+          height: 36px;
+          border-radius: 10px;
+          background: ${isLight ? '#111827' : isDarkCharcoal ? '#F97316' : 'linear-gradient(135deg, #FAF92A, #FDBF2D)'};
+          color: ${isLight ? '#FFFFFF' : isDarkCharcoal ? '#FFFFFF' : '#06124A'};
+          font-weight: 800;
+          font-size: 13px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          font-family: 'Poppins', sans-serif;
+        }
+
+        .dl-logout-btn {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          padding: 10px 12px;
+          border-radius: 12px;
+          background: transparent;
+          border: none;
+          color: ${tokens.textMuted};
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all .15s;
+          width: 100%;
+          margin-top: 6px;
+          font-family: 'Inter', sans-serif;
+        }
+        .dl-logout-btn:hover { color: #EF4444; background: rgba(239,68,68,0.08); }
+
+        .dl-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+        .dl-topbar {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 20px 36px;
-          border-bottom: 1px solid rgba(250, 249, 42, 0.1);
+          padding: 16px 32px;
+          border-bottom: 1px solid ${tokens.border};
+          background: ${tokens.topbarBg};
+          backdrop-filter: blur(12px);
+          position: sticky;
+          top: 0;
+          z-index: 30;
           flex-shrink: 0;
-          background: rgba(6, 18, 74, 0.4);
-          backdrop-filter: blur(10px);
+          transition: background-color .25s ease, border-color .25s ease;
         }
 
-        /* Body Wrap: Halkan kaliya ayaa leh SCROLL (overflow-y: auto) */
-        .jp-body-wrap {
-          padding: 28px 36px;
-          flex: 1;
-          overflow-y: auto;
-          min-height: 0;
+        .dl-topbar-search {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          background: ${tokens.inputBg};
+          border: 1px solid ${tokens.border};
+          border-radius: 12px;
+          padding: 8px 14px;
+          transition: border-color .15s;
+          box-shadow: ${isLight ? '0 1px 3px rgba(0,0,0,0.04)' : 'none'};
+        }
+        .dl-topbar-search:focus-within { border-color: ${tokens.accent}; }
+        .dl-topbar-search input {
+          background: transparent;
+          border: none;
+          outline: none;
+          color: ${tokens.text};
+          font-size: 13px;
+          font-family: 'Inter', sans-serif;
+          width: 180px;
+        }
+        .dl-topbar-search input::placeholder { color: ${tokens.textMuted}; }
+
+        .dl-topbar-icon-btn {
+          width: 38px;
+          height: 38px;
+          border-radius: 11px;
+          background: ${tokens.inputBg};
+          border: 1px solid ${tokens.border};
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: ${tokens.textMuted};
+          cursor: pointer;
+          transition: all .15s;
+          box-shadow: ${isLight ? '0 1px 3px rgba(0,0,0,0.04)' : 'none'};
+        }
+        .dl-topbar-icon-btn:hover { color: ${tokens.text}; background: ${tokens.hoverBg}; transform: scale(1.05); }
+
+        /* 3-Way Segmented Theme Switcher */
+        .dl-theme-segmented {
+          display: flex;
+          align-items: center;
+          background: ${tokens.inputBg};
+          border: 1px solid ${tokens.border};
+          border-radius: 12px;
+          padding: 3px;
+          gap: 2px;
         }
 
-        @media (max-width: 900px) {
-          .jp-sidebar {
+        .dl-theme-opt {
+          padding: 5px 10px;
+          border-radius: 8px;
+          border: none;
+          font-size: 11px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all .18s ease;
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          color: ${tokens.textMuted};
+          background: transparent;
+          font-family: 'Inter', sans-serif;
+        }
+
+        .dl-theme-opt:hover { color: ${tokens.text}; }
+
+        .dl-theme-opt.active-navy {
+          background: #FAF92A;
+          color: #06124A;
+          box-shadow: 0 2px 6px rgba(250,249,42,0.25);
+        }
+
+        .dl-theme-opt.active-light {
+          background: #FFFFFF;
+          color: #111827;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+          border: 1px solid #E3E0D8;
+        }
+
+        .dl-theme-opt.active-dark {
+          background: #F97316;
+          color: #FFFFFF;
+          box-shadow: 0 2px 6px rgba(249,115,22,0.3);
+        }
+
+        .dl-content { padding: 28px 32px; flex: 1; overflow-y: auto; }
+
+        .dl-mobile-overlay {
+          display: none;
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.6);
+          z-index: 39;
+        }
+
+        @media (max-width: 960px) {
+          .dl-sidebar {
             position: fixed;
             left: 0; top: 0; bottom: 0;
             transform: translateX(-100%);
           }
-          .jp-sidebar.open {
-            transform: translateX(0);
-          }
-          .jp-topbar, .jp-body-wrap {
-            padding-left: 20px;
-            padding-right: 20px;
-          }
+          .dl-sidebar.open { transform: translateX(0); }
+          .dl-mobile-overlay.open { display: block; }
+          .dl-topbar { padding: 14px 18px; }
+          .dl-content { padding: 20px 18px; }
+          .dl-topbar-search { display: none; }
         }
       `}</style>
 
-      {/* Ambient Glows */}
-      <div className="jp-glow" style={{ width: 400, height: 400, background: BRAND.primary, filter: 'blur(160px)', opacity: 0.1, top: -120, left: -100 }} />
-      <div className="jp-glow" style={{ width: 350, height: 350, background: BRAND.secondary, filter: 'blur(160px)', opacity: 0.08, bottom: -80, right: -80 }} />
+      {/* Mobile overlay */}
+      <div
+        className={`dl-mobile-overlay ${sidebarOpen ? 'open' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
 
-      {/* Sidebar */}
-      <aside className={`jp-sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <Link to="/dashboard" className="flex items-center gap-3 mb-8 px-2 text-decoration-none">
-          <LogoMark size={38} />
-          <div className="flex flex-col">
-            <span className="jp-heading font-extrabold text-white text-lg leading-tight">
-              Job<span style={{ color: BRAND.primary }}>Portal</span>
-            </span>
-            <span className="text-[10px] text-[#AEB8D0] uppercase tracking-wider">
-              Workspace
-            </span>
-          </div>
-        </Link>
+      {/* ── SIDEBAR ─────────────────────────────────────── */}
+      <aside className={`dl-sidebar ${sidebarOpen ? 'open' : ''}`}>
 
-        <nav className="flex-1 overflow-y-auto">
-          {navItems.map((item) => {
+        {/* Logo */}
+        <div className="dl-logo-area">
+          <Link to="/home" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+            <LogoMark size={36} />
+            <div>
+              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 17, color: tokens.text, lineHeight: 1.1 }}>
+                Job<span style={{ color: isNavyOriginal ? '#FAF92A' : isDarkCharcoal ? '#F97316' : '#111827' }}>Portal</span>
+              </div>
+              <div style={{ fontSize: 10, color: tokens.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 1 }}>
+                {user?.role === 'admin' ? 'Admin Panel' : user?.role === 'company' ? 'Company Hub' : 'Workspace'}
+              </div>
+            </div>
+          </Link>
+        </div>
+
+        {/* Navigation */}
+        <nav className="dl-nav-section">
+          <span className="dl-nav-label">Main Menu</span>
+
+          {navItems.slice(0, 4).map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             return (
               <Link
                 key={item.key}
                 to={item.path}
-                className={`jp-nav-item ${isActive ? 'active' : ''}`}
+                className={`dl-nav-item ${isActive ? 'active' : ''}`}
                 onClick={() => setSidebarOpen(false)}
               >
-                <Icon style={{ fontSize: 18 }} />
+                <Icon size={17} />
                 <span>{item.label}</span>
+                <ChevronRight size={13} className="nav-arrow" />
               </Link>
             );
           })}
+
+          {/* Company / Admin extra links */}
+          {navItems.length > 4 && (
+            <>
+              <span className="dl-nav-label" style={{ marginTop: 10 }}>
+                {user?.role === 'admin' ? 'Administration' : 'Management'}
+              </span>
+              {navItems.slice(4).map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.key}
+                    to={item.path}
+                    className={`dl-nav-item ${isActive ? 'active' : ''}`}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Icon size={17} />
+                    <span>{item.label}</span>
+                    <ChevronRight size={13} className="nav-arrow" />
+                  </Link>
+                );
+              })}
+            </>
+          )}
         </nav>
 
-        {/* User Card at bottom of sidebar */}
-        <div className="pt-4 border-t border-white/10 flex items-center justify-between">
-          <Link to="/profile" className="flex items-center gap-2 text-decoration-none text-white overflow-hidden">
-            <div className="w-8 h-8 rounded-full bg-[#FAF92A] text-[#06124A] font-bold flex items-center justify-center text-xs shrink-0">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+        {/* User area */}
+        <div className="dl-user-area">
+          <Link to="/profile" className="dl-user-card" onClick={() => setSidebarOpen(false)}>
+            {user?.avatar ? (
+              <img src={user.avatar} alt={user.name} className="dl-avatar" style={{ objectCover: 'cover', borderRadius: 10 }} />
+            ) : (
+              <div className="dl-avatar">{getInitials(user?.name)}</div>
+            )}
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: tokens.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user?.name || 'User'}
+              </div>
+              <div style={{ fontSize: 11, color: tokens.textMuted, textTransform: 'capitalize', marginTop: 1 }}>
+                {user?.role || 'Guest'}
+              </div>
             </div>
-            <div className="truncate">
-              <p className="text-xs font-bold truncate">{user?.name || 'User'}</p>
-              <p className="text-[10px] text-[#AEB8D0] capitalize truncate">{user?.role || 'Guest'}</p>
-            </div>
+            <ChevronRight size={14} color={tokens.textMuted} />
           </Link>
-          <button
-            onClick={handleLogout}
-            className="text-[#AEB8D0] hover:text-[#EF4444] p-1.5 rounded-lg transition-colors"
-            title="Log Out"
-          >
-            <LogoutOutlined style={{ fontSize: 16 }} />
+
+          <button className="dl-logout-btn" onClick={handleLogout}>
+            <LogOut size={15} />
+            <span>Sign Out</span>
           </button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <div className="jp-main-content">
+      {/* ── MAIN CONTENT ─────────────────────────────────── */}
+      <div className="dl-main">
+
         {/* Topbar */}
-        <header className="jp-topbar">
-          <div className="flex items-center gap-3">
+        <header className="dl-topbar">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Mobile menu toggle */}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="md:hidden text-white p-2"
+              style={{ display: 'none', background: 'none', border: 'none', color: tokens.text, cursor: 'pointer', padding: 4 }}
+              className="dl-menu-btn"
             >
-              <MenuOutlined style={{ fontSize: 20 }} />
+              {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
             </button>
+
+            {/* Breadcrumb / page title */}
             <div>
-              <h1 className="jp-heading font-extrabold text-xl md:text-2xl text-white">
-                Welcome back, {user?.name || 'Friend'} 👋
+              <div style={{ fontSize: 11, color: tokens.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>
+                Dashboard › {navItems.find(n => n.path === location.pathname)?.label || 'Overview'}
+              </div>
+              <h1 style={{
+                margin: 0, fontSize: 18, fontWeight: 800, color: tokens.text,
+                fontFamily: 'Poppins, sans-serif'
+              }}>
+                Welcome back, {user?.name || 'User'}
               </h1>
-              <p className="jp-body text-xs text-[#AEB8D0] mt-0.5">
-                Here's what's happening with your job portal workspace today.
-              </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
-            <Link
-              to="/profile"
-              className="w-9 h-9 rounded-full bg-[#FAF92A] text-[#06124A] font-bold flex items-center justify-center shadow-md hover:scale-105 transition-transform"
-            >
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Search */}
+            <div className="dl-topbar-search">
+              <Search size={14} color={tokens.textMuted} />
+              <input placeholder="Search..." />
+            </div>
+
+            {/* 3-WAY THEME SEGMENTED SWITCHER (Logged-in Users) */}
+            <div className="dl-theme-segmented">
+              <button
+                onClick={() => changeTheme('navy')}
+                className={`dl-theme-opt ${isNavyOriginal ? 'active-navy' : ''}`}
+                title="Original Navy & Yellow Theme"
+              >
+                <Palette size={13} />
+                <span>Navy</span>
+              </button>
+
+              <button
+                onClick={() => changeTheme('light')}
+                className={`dl-theme-opt ${isLight ? 'active-light' : ''}`}
+                title="SaaS Light White Theme"
+              >
+                <Sun size={13} />
+                <span>White</span>
+              </button>
+
+              <button
+                onClick={() => changeTheme('dark')}
+                className={`dl-theme-opt ${isDarkCharcoal ? 'active-dark' : ''}`}
+                title="SaaS Dark Charcoal Theme"
+              >
+                <Moon size={13} />
+                <span>Dark</span>
+              </button>
+            </div>
+
+            {/* Notification bell */}
+            <div className="dl-topbar-icon-btn" title="Notifications">
+              <Bell size={16} />
+            </div>
+
+            {/* Avatar */}
+            <Link to="/profile" style={{ textDecoration: 'none' }}>
+              {user?.avatar ? (
+                <img src={user.avatar} alt={user.name} className="dl-avatar" style={{ objectFit: 'cover', borderRadius: 10 }} />
+              ) : (
+                <div className="dl-avatar" style={{ borderRadius: 10 }}>{getInitials(user?.name)}</div>
+              )}
             </Link>
           </div>
         </header>
 
-        {/* Dashboard Page Children */}
-        <main className="jp-body-wrap">
+        {/* Page content */}
+        <main className="dl-content">
           {children}
         </main>
       </div>
+
+      {/* Inline style fix for mobile menu btn visibility */}
+      <style>{`
+        @media (max-width: 960px) {
+          .dl-menu-btn { display: flex !important; }
+        }
+      `}</style>
     </div>
   );
 }

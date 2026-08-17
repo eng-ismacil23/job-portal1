@@ -65,6 +65,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUser = (updatedFields) => {
+    setUser((prev) => {
+      const newUser = { ...prev, ...updatedFields };
+      localStorage.setItem('jp_user', JSON.stringify(newUser));
+      return newUser;
+    });
+  };
+
   const logout = () => {
     localStorage.removeItem('jp_token');
     localStorage.removeItem('jp_user');
@@ -73,7 +81,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

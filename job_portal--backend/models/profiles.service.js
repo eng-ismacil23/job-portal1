@@ -2,43 +2,45 @@ const mongoose = require('mongoose');
 const joi = require('joi');
 
 const profileSchema = new mongoose.Schema({
-    userId:{
+    userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Users",
-        required: true
+        required: true,
+        unique: true
     },
-    bio:{
-        type : String,
-        required : true
-    },
-    education:{
+    bio: {
         type: String,
-        required: true
+        default: ''
     },
-    experience:{
+    education: {
         type: String,
-        required: true
+        default: ''
+    },
+    experience: {
+        type: String,
+        default: ''
     }, 
-    CV:{
+    CV: {
         type: String,
-        required: true
+        default: ''
     }
-},{ timestamps: true }) ;
+}, { timestamps: true });
 
-const profileModel = mongoose.model("profile",profileSchema);
+const profileModel = mongoose.model("profile", profileSchema);
 
-function validateProfile (profile){
+function validateProfile(profile) {
     const schema = joi.object({
-        bio:joi.string().required().max(50).min(6),
-        education: joi.string().required().min(6).max(30),
-        experience: joi.string().required().min(5),
-        CV: joi.string().required(),
-        userId: joi.string().required()
-    })
+        bio: joi.string().allow('').optional().max(1000),
+        education: joi.string().allow('').optional().max(200),
+        experience: joi.string().allow('').optional().max(2000),
+        CV: joi.string().allow('').optional(),
+        userId: joi.string().optional()
+    });
 
-    return(schema.validate(profile));
+    return schema.validate(profile);
 }
+
 module.exports = {
     profileModel,
     validateProfile,
-}
+};

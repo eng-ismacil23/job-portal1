@@ -6,9 +6,12 @@ import App from './App.jsx'
 import HomePage from './App.jsx'
 
 import { BrowserRouter } from 'react-router-dom'
+import { ThemeProvider } from './context/ThemeContext'
 
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
-    <App />
+    <ThemeProvider>
+      <App />
+    </ThemeProvider>
   </BrowserRouter>,
 )

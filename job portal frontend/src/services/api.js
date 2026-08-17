@@ -1,6 +1,9 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:3001';
+// Fiiro gaar ah: marka la deploy-gareynayo, deji VITE_API_URL faylka .env
+// (tusaale: VITE_API_URL=https://api.tusaale.com). Haddii aan la dejin,
+// waxa loo isticmaalaa localhost:3001 (dev only).
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -32,4 +35,5 @@ api.interceptors.response.use(
   }
 );
 
+export { API_BASE_URL };
 export default api;

@@ -1,4 +1,5 @@
 const { profileModel } = require('../models/profiles.service');
+const HTTP_STATUS = require('../constants/httpStatusCodes');
 
 const createProfile = async (req, res) => {
     try {
@@ -7,13 +8,12 @@ const createProfile = async (req, res) => {
 
         const existingProfile = await profileModel.findOne({ userId });
         if (existingProfile) {
-            // Auto-update instead of rejecting
             const updated = await profileModel.findOneAndUpdate(
                 { userId },
                 { bio, education, experience, CV },
-                { new: true }
+                { new: true, runValidators: true }
             );
-            return res.status(200).json({
+            return res.status(HTTP_STATUS.OK).json({
                 status: "true",
                 message: "Profile updated successfully",
                 data: updated
@@ -23,58 +23,71 @@ const createProfile = async (req, res) => {
         const newProfile = new profileModel({ userId, bio, education, experience, CV });
         await newProfile.save();
 
-        res.status(201).json({
+        res.status(HTTP_STATUS.CREATED).json({
             status: "true",
             message: "Profile created successfully",
             data: newProfile
         });
     } catch (err) {
-        res.status(500).json({ status: "false", message: "Internal server error", error: err.message });
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ status: "false", message: "Internal server error", error: err.message });
     }
 };
 
+// Full profile listing - route-level `authorize('company', 'admin')` now
+// restricts this so ordinary students can no longer browse everyone else's
+// CV/bio/experience data (previously open to any authenticated user).
 const GET = async (req, res) => {
     try {
-        const profiles = await profileModel.find().populate("userId", "name email role skills");
-        res.status(200).json({ status: "true", message: "Profiles found successfully", data: profiles });
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 100);
+        const skip = (page - 1) * limit;
+
+        const [profiles, total] = await Promise.all([
+            profileModel.find().populate("userId", "name email role skills").skip(skip).limit(limit),
+            profileModel.countDocuments()
+        ]);
+
+        res.status(HTTP_STATUS.OK).json({
+            status: "true",
+            message: "Profiles found successfully",
+            data: profiles,
+            pagination: { page, limit, total, pages: Math.ceil(total / limit) }
+        });
     } catch (err) {
-        res.status(500).json({ status: "false", message: "Internal server error", error: err.message });
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ status: "false", message: "Internal server error", error: err.message });
     }
 };
 
-// GET by userId param  e.g. GET /profiles/:userId
 const getProfileByUserId = async (req, res) => {
     try {
         const userId = req.params.userId || req.params.id;
         const profile = await profileModel.findOne({ userId }).populate("userId", "name email role skills");
 
         if (!profile) {
-            return res.status(404).json({ status: "false", message: "Profile not found" });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ status: "false", message: "Profile not found" });
         }
 
-        res.status(200).json({ status: "true", message: "Profile retrieved successfully", data: profile });
+        res.status(HTTP_STATUS.OK).json({ status: "true", message: "Profile retrieved successfully", data: profile });
     } catch (err) {
-        res.status(500).json({ status: "false", message: "Internal server error", error: err.message });
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ status: "false", message: "Internal server error", error: err.message });
     }
 };
 
-// GET own profile (from token)
 const getMyProfile = async (req, res) => {
     try {
         const userId = req.user.id;
         const profile = await profileModel.findOne({ userId }).populate("userId", "name email role skills");
 
         if (!profile) {
-            return res.status(404).json({ status: "false", message: "Profile not found" });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ status: "false", message: "Profile not found" });
         }
 
-        res.status(200).json({ status: "true", message: "Profile retrieved successfully", data: profile });
+        res.status(HTTP_STATUS.OK).json({ status: "true", message: "Profile retrieved successfully", data: profile });
     } catch (err) {
-        res.status(500).json({ status: "false", message: "Internal server error", error: err.message });
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ status: "false", message: "Internal server error", error: err.message });
     }
 };
 
-// PATCH /profiles  — update own profile by token (no :id needed)
 const updateMyProfile = async (req, res) => {
     try {
         const userId = req.user.id;
@@ -82,17 +95,22 @@ const updateMyProfile = async (req, res) => {
 
         const updatedProfile = await profileModel.findOneAndUpdate(
             { userId },
-            { bio, education, experience, CV },
-            { new: true, upsert: true }   // upsert: create if not exists
+            { 
+                bio: bio || '', 
+                education: education || '', 
+                experience: experience || '', 
+                CV: CV || '' 
+            },
+            { new: true, upsert: true, runValidators: true }
         );
 
-        res.status(200).json({ status: "true", message: "Profile updated successfully", data: updatedProfile });
+        res.status(HTTP_STATUS.OK).json({ status: "true", message: "Profile updated successfully", data: updatedProfile });
     } catch (err) {
-        res.status(500).json({ status: "false", message: "Internal server error", error: err.message });
+        console.error('updateMyProfile error:', err);
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ status: "false", message: err.message || "Internal server error" });
     }
 };
 
-// PATCH /profiles/:id  (by profile _id, for admin or backward compat)
 const updateProfile = async (req, res) => {
     try {
         const { id } = req.params;
@@ -100,22 +118,22 @@ const updateProfile = async (req, res) => {
 
         const profile = await profileModel.findById(id);
         if (!profile) {
-            return res.status(404).json({ status: "false", message: "Profile not found" });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ status: "false", message: "Profile not found" });
         }
 
         if (profile.userId.toString() !== req.user.id && req.user.role !== 'admin') {
-            return res.status(403).json({ status: "false", message: "Unauthorized to update this profile." });
+            return res.status(HTTP_STATUS.FORBIDDEN).json({ status: "false", message: "Unauthorized to update this profile." });
         }
 
         const updatedProfile = await profileModel.findByIdAndUpdate(
             id,
             { bio, education, experience, CV },
-            { new: true }
+            { new: true, runValidators: true }
         );
 
-        res.status(200).json({ status: "true", message: "Profile updated successfully", data: updatedProfile });
+        res.status(HTTP_STATUS.OK).json({ status: "true", message: "Profile updated successfully", data: updatedProfile });
     } catch (err) {
-        res.status(500).json({ status: "false", message: "Internal server error", error: err.message });
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ status: "false", message: "Internal server error", error: err.message });
     }
 };
 

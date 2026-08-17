@@ -1,4 +1,3 @@
-// footer
 import React from "react";
 import {
   FaFacebookF,
@@ -46,7 +45,7 @@ export default function Footer() {
       style={{
         background: BRAND.bg,
         color: BRAND.textSecondary,
-        marginTop: 80,
+        marginTop: 40,
         borderTop: `1px solid ${BRAND.card}`,
       }}
     >
@@ -287,7 +286,7 @@ export default function Footer() {
             fontSize: 14,
           }}
         >
-          ©️ 2026 JobPortal. All Rights Reserved.
+          © 2026 JobPortal. All Rights Reserved.
         </span>
 
         <div
