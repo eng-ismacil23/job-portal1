@@ -11,6 +11,8 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme, themeTokens } from '../context/ThemeContext';
 import DashboardLayout from '../layout/DashboardLayout';
 import HomeJobs from '../homejobs/HomeJobs';
+import JobDetails from '../pages/JobDetails';
+
 
 export default function Jobs() {
   const { user } = useAuth();
